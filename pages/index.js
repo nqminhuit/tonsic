@@ -40,18 +40,25 @@ export default function Home() {
   }
 
   return (
-    <div className="app">
-      <h1>Tonsic — Chord Trainer</h1>
-      <div className="controls">
-        <button onClick={connect}>{connected ? 'Connected' : 'Connect MIDI'}</button>
-        <button onClick={newChord}>New chord</button>
-      </div>
-      <div className="target">
-        {target ? <strong>Target:</strong> : null}
-        {target ? ` ${target.name}` : ' (press New chord)'}
-      </div>
-      <OnScreenKeyboard onPlay={(note) => handleNote({ note, velocity: 127 })} />
-      {result ? <ScoreCard result={result} /> : null}
+    <div className="max-w-3xl mx-auto">
+      <header className="flex items-center justify-between py-6">
+        <h1 className="text-2xl font-semibold">Tonsic</h1>
+        <div className="flex gap-3">
+          <button onClick={connect} className="px-3 py-2 bg-blue-600 text-white rounded">{connected ? 'Connected' : 'Connect MIDI'}</button>
+          <button onClick={newChord} className="px-3 py-2 border rounded">New chord</button>
+        </div>
+      </header>
+
+      <main className="bg-white p-6 rounded shadow">
+        <div className="mb-4">
+          <div className="text-sm text-gray-500">Target chord</div>
+          <div className="text-xl font-medium">{target ? target.name : '(press New chord)'}</div>
+        </div>
+
+        <OnScreenKeyboard onPlay={(note) => handleNote({ note, velocity: 127 })} />
+
+        <div className="mt-4">{result ? <ScoreCard result={result} /> : null}</div>
+      </main>
     </div>
   );
 }
