@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Keyboard from './Keyboard';
 import ScoreCard from './ScoreCard';
+import Staff from './Staff';
 
 export default function MIDIController() {
   const [chordsModule, setChordsModule] = useState(null);
@@ -90,9 +91,14 @@ export default function MIDIController() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-sm text-slate-500">Current target</div>
-              <div className="mt-1 inline-flex items-center gap-3">
-                <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-lg">{target ? target.name : '—'}</span>
-                <div className="text-sm text-slate-600">Play the chord or use the on-screen keys</div>
+              <div className="mt-1">
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-lg">{target ? target.name : '—'}</span>
+                  <div className="text-sm text-slate-600">Play the chord or use the on-screen keys</div>
+                </div>
+                <div className="mt-3">
+                  <Staff pcs={target ? target.pcs : []} />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
