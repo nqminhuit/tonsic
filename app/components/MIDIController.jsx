@@ -6,13 +6,16 @@ import ScoreCard from './ScoreCard';
 import Staff from './Staff';
 
 export default function MIDIController() {
+  const debounceMs = 1000;
   const [chordsModule, setChordsModule] = useState(null);
   const [target, setTarget] = useState(null);
   const [status, setStatus] = useState('Not connected');
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  // debounce for evaluating played notes (ms). This will be exposed in settings later.
+  const [isRecording, setIsRecording] = useState(false);
 
-  const captureRef = useRef(new Set());
+  const captureRef = useRef([]);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -23,6 +26,8 @@ export default function MIDIController() {
         if (!mounted) return;
         setChordsModule(m);
         const first = m.randomChord({ includeExtended: true });
+        // compute a default voicing in octave 4
+        first.voicing = m.buildVoicing(first.root, first.type, 4);
         setTarget(first);
       })
       .catch((err) => console.error('Failed to load chords module:', err));
@@ -33,25 +38,42 @@ export default function MIDIController() {
     if (!chordsModule) return;
     setHistory((h) => [target, ...h].filter(Boolean).slice(0, 6));
     const next = chordsModule.randomChord({ includeExtended: true });
+    // compute default voicing (root octave 4)
+    next.voicing = chordsModule.buildVoicing(next.root, next.type, 4);
     setTarget(next);
     setResult(null);
+    setIsRecording(false);
   }
 
   function handlePlayedNote(noteNumber) {
-    const pc = ((noteNumber % 12) + 12) % 12;
-    captureRef.current.add(pc);
+    // If this is the first note of a new capture window, clear previous result/highlights
+    if (captureRef.current.length === 0) {
+      setResult(null);
+      setIsRecording(true);
+    }
+    // store raw MIDI number in order
+    captureRef.current.push(noteNumber);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       const played = Array.from(captureRef.current);
-      captureRef.current.clear();
+      captureRef.current.length = 0;
+      setIsRecording(false);
       evaluate(played);
-    }, 700);
+    }, debounceMs);
   }
 
   function evaluate(played) {
     if (!target || !chordsModule) return;
-    const res = chordsModule.matchChord(target.pcs, played);
-    setResult(res);
+    // If the target has a concrete voicing, prefer exact-voicing match
+    if (target.voicing && target.voicing.length) {
+      const res = chordsModule.matchExactVoicing(target.voicing, played);
+      setResult(res);
+    } else {
+      // fallback to pitch-class matching
+      const pcs = target.pcs || [];
+      const res = chordsModule.matchChord(pcs, played.map(n => n % 12));
+      setResult(res);
+    }
   }
 
   async function connectMIDI() {
@@ -97,17 +119,17 @@ export default function MIDIController() {
                   <div className="text-sm text-slate-600">Play the chord or use the on-screen keys</div>
                 </div>
                 <div className="mt-3">
-                  <Staff pcs={target ? target.pcs : []} />
+                  <Staff notes={target ? (target.voicing || target.pcs) : []} result={result} />
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button onClick={connectMIDI} className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow hover:bg-indigo-700 flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-90"><path d="M12 2v20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 7v10a7 7 0 0014 0V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-90"><path d="M12 2v20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M5 7v10a7 7 0 0014 0V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 Connect
               </button>
               <button onClick={newChord} className="px-4 py-2 bg-rose-500 text-white rounded-md shadow hover:bg-rose-600 flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 New
               </button>
             </div>
@@ -115,6 +137,13 @@ export default function MIDIController() {
 
           <div className="mb-4">
             <Keyboard onPlay={handlePlayedNote} />
+            <div className="mt-2 text-sm text-slate-500">
+              {isRecording ? (
+                <span className="text-rose-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
+              ) : (
+                <span>Ready — evaluation delay: {debounceMs}ms</span>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
