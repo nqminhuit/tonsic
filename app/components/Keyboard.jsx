@@ -98,20 +98,36 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
           const badgeIndex = isTarget ? targetMidis.indexOf(midi) : -1;
           const badgeText = badgeIndex >= 0 ? (orderMap && orderMap[badgeIndex] ? orderMap[badgeIndex] : String(badgeIndex + 1)) : null;
 
-          let blackBg = '#111827';
-          let blackColor = '#fff';
-          let blackBoxShadow = 'none';
-          if (isCorrect) { blackBg = '#065f46'; blackColor = '#fff'; blackBoxShadow = '0 0 12px rgba(6,95,70,0.6)'; }
-          else if (isWrong) { blackBg = '#ef4444'; blackColor = '#fff'; blackBoxShadow = '0 0 12px rgba(239,68,68,0.5)'; }
-          else if (isTarget) { blackBg = '#064e3b'; blackColor = '#fff'; blackBoxShadow = '0 0 6px rgba(16,185,129,0.25)'; }
-          else if (isPressed) { blackBg = '#3730a3'; blackColor = '#fff'; blackBoxShadow = '0 0 6px rgba(55,48,163,0.4)'; }
+          // Styles tuned for dark key surfaces: use light fills and glow for visibility
+          let styleObj = { background: '#111827', color: '#fff', border: '1px solid rgba(0,0,0,0.4)', boxShadow: 'none' };
+          if (isCorrect) {
+            styleObj.background = '#86efac'; // light green
+            styleObj.color = '#064e3b';
+            styleObj.boxShadow = '0 0 12px rgba(134,239,172,0.6)';
+            styleObj.border = '1px solid rgba(34,197,94,0.9)';
+          } else if (isWrong) {
+            styleObj.background = '#fecaca'; // light red/pink
+            styleObj.color = '#7f1d1d';
+            styleObj.boxShadow = '0 0 12px rgba(252,165,165,0.6)';
+            styleObj.border = '1px solid rgba(248,113,113,0.9)';
+          } else if (isTarget) {
+            styleObj.background = '#111827';
+            styleObj.color = '#fff';
+            styleObj.boxShadow = '0 0 10px rgba(16,185,129,0.35)';
+            styleObj.border = '2px solid rgba(16,185,129,0.85)';
+          } else if (isPressed) {
+            styleObj.background = '#93c5fd';
+            styleObj.color = '#04224f';
+            styleObj.boxShadow = '0 0 6px rgba(59,130,246,0.35)';
+            styleObj.border = '1px solid rgba(59,130,246,0.6)';
+          }
 
           return (
-            <button key={`${octOffset}-${k}`} onClick={(e) => { e.stopPropagation(); clickMidi(midi); }} aria-label={NOTE_NAMES[semitone] + (baseOctave + octOffset)} className={`absolute`} style={{ left, top: 0, width: 28, height: 100, borderRadius: 6, background: blackBg, color: blackColor, border: '1px solid rgba(0,0,0,0.4)', zIndex: 5, pointerEvents: 'auto', boxShadow: blackBoxShadow }}>
-              {!hideLabels && <div className="text-xs text-white/90 mt-20" style={{color: blackColor}}>{NOTE_NAMES[semitone]}{baseOctave + octOffset}</div>}
+            <button key={`${octOffset}-${k}`} onClick={(e) => { e.stopPropagation(); clickMidi(midi); }} aria-label={NOTE_NAMES[semitone] + (baseOctave + octOffset)} className={`absolute`} style={{ left, top: 0, width: 28, height: 100, borderRadius: 6, zIndex: 5, pointerEvents: 'auto', ...styleObj }}>
+              {!hideLabels && <div className="text-xs" style={{ color: styleObj.color, marginTop: '0.5rem' }}>{NOTE_NAMES[semitone]}{baseOctave + octOffset}</div>}
               {isTarget && showOrderNumbers && (
                 <div className="absolute left-0 right-0 top-2 flex justify-center">
-                  <div className="text-xs font-semibold" style={{background:'#86efac', width:20, height:20, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', color:'#000', boxShadow:'0 1px 3px rgba(0,0,0,0.2)'}}>{badgeText}</div>
+                  <div className="text-xs font-semibold" style={{ background:'#86efac', width:20, height:20, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', color:'#064e3b', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}>{badgeText}</div>
                 </div>
               )}
             </button>
