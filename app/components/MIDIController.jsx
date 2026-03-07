@@ -14,6 +14,9 @@ export default function MIDIController() {
   const [history, setHistory] = useState([]);
   // debounce for evaluating played notes (ms). This will be exposed in settings later.
   const [isRecording, setIsRecording] = useState(false);
+  const [availableTypes, setAvailableTypes] = useState([]);
+  const [enabledTypes, setEnabledTypes] = useState(new Set(['maj','min','7']));
+  const [showSettings, setShowSettings] = useState(false);
 
   const captureRef = useRef([]);
   const timerRef = useRef(null);
@@ -29,6 +32,23 @@ export default function MIDIController() {
         // compute a default voicing in octave 4
         first.voicing = m.buildVoicing(first.root, first.type, 4);
         setTarget(first);
+        // initialize available chord types and enabled set from localStorage
+        const types = Object.keys(m.CHORD_FORMULAS || {});
+        setAvailableTypes(types);
+        let enabled = ['maj','min','7'];
+        try {
+          const persisted = typeof window !== 'undefined' ? window.localStorage.getItem('enabledChordTypes') : null;
+          if (persisted) enabled = JSON.parse(persisted) || enabled;
+        } catch (e) {
+          // ignore
+        }
+        if (Array.isArray(enabled) && enabled.length) {
+          if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(enabled);
+          setEnabledTypes(new Set(enabled));
+        } else {
+          if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(['maj','min','7']);
+          setEnabledTypes(new Set(['maj','min','7']));
+        }
       })
       .catch((err) => console.error('Failed to load chords module:', err));
     return () => { mounted = false; };
@@ -43,6 +63,16 @@ export default function MIDIController() {
     setTarget(next);
     setResult(null);
     setIsRecording(false);
+  }
+
+  function toggleType(t) {
+    const newSet = new Set(enabledTypes);
+    if (newSet.has(t)) newSet.delete(t);
+    else newSet.add(t);
+    setEnabledTypes(newSet);
+    const arr = [...newSet];
+    if (chordsModule && typeof chordsModule.setEnabledChordTypes === 'function') chordsModule.setEnabledChordTypes(arr);
+    if (typeof window !== 'undefined') window.localStorage.setItem('enabledChordTypes', JSON.stringify(arr));
   }
 
   function handlePlayedNote(noteNumber) {
@@ -164,6 +194,23 @@ export default function MIDIController() {
 
           <div className="text-sm text-slate-500">Status</div>
           <div className="mt-2 text-sm text-slate-600">{status}</div>
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-500">Chord types</div>
+              <button onClick={() => setShowSettings(s => !s)} className="text-sm text-indigo-600">Settings</button>
+            </div>
+            {showSettings && (
+              <div className="mt-2 space-y-2">
+                {availableTypes.map((t) => (
+                  <label key={t} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={enabledTypes.has(t)} onChange={() => toggleType(t)} />
+                    <span className="capitalize">{t}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </aside>
       </div>
     </div>
