@@ -18,6 +18,10 @@ export default function MIDIController() {
   const [enabledTypes, setEnabledTypes] = useState(new Set(['maj','min','7']));
   const [showSettings, setShowSettings] = useState(false);
 
+  // Visual piano keyboard mode
+  const [visualKeyboard, setVisualKeyboard] = useState(true);
+  const [baseOctave, setBaseOctave] = useState(4);
+
   const captureRef = useRef([]);
   const timerRef = useRef(null);
 
@@ -52,6 +56,19 @@ export default function MIDIController() {
       })
       .catch((err) => console.error('Failed to load chords module:', err));
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const persistedVisual = window.localStorage.getItem('visualKeyboard');
+        const persistedOct = window.localStorage.getItem('keyboardBaseOctave');
+        if (persistedVisual !== null) setVisualKeyboard(persistedVisual === 'true');
+        if (persistedOct !== null) setBaseOctave(Number(persistedOct));
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   function newChord() {
@@ -166,7 +183,7 @@ export default function MIDIController() {
           </div>
 
           <div className="mb-4">
-            <Keyboard onPlay={handlePlayedNote} />
+            <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} />
             <div className="mt-2 text-sm text-slate-500">
               {isRecording ? (
                 <span className="text-rose-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
@@ -208,6 +225,18 @@ export default function MIDIController() {
                     <span className="capitalize">{t}</span>
                   </label>
                 ))}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={visualKeyboard} onChange={() => { const n = !visualKeyboard; setVisualKeyboard(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('visualKeyboard', String(n)); } catch (e) {} }} />
+                    <span>Visual piano keyboard</span>
+                  </label>
+                  <div className="mt-2 text-sm text-slate-600 flex items-center gap-2">
+                    <button onClick={() => { const n = Math.max(0, baseOctave - 1); setBaseOctave(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('keyboardBaseOctave', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">-</button>
+                    <div>Base octave: <span className="font-medium">{baseOctave}</span></div>
+                    <button onClick={() => { const n = Math.min(8, baseOctave + 1); setBaseOctave(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('keyboardBaseOctave', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">+</button>
+                    <div className="text-xs text-slate-400">(Use the octave buttons to shift base octave)</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
