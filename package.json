@@ -3,14 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "export": "next build && next export",
+    "start": "next dev --turbopack",
     "test": "node test-runner.js"
   },
   "dependencies": {
-    "next": "^16.1.6",
+    "next": "^15.5.12",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
