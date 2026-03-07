@@ -21,9 +21,20 @@ export default function MIDIController() {
   // Visual piano keyboard mode
   const [visualKeyboard, setVisualKeyboard] = useState(true);
   const [baseOctave, setBaseOctave] = useState(4);
+  // mode: 'test' | 'learning'
+  const [mode, setMode] = useState('learning');
+  // numbering style: 'formula' (1,3,5) or 'pitch' (ascending order numbers)
+  const [numberingStyle, setNumberingStyle] = useState('formula');
+  // computed target mapping for keyboard highlights
+  const [targetMidis, setTargetMidis] = useState([]);
+  const [targetOrderMap, setTargetOrderMap] = useState([]);
+  const [octavesVisible, setOctavesVisible] = useState(2);
 
   const captureRef = useRef([]);
   const timerRef = useRef(null);
+  const highlightTimerRef = useRef(null);
+  const highlightShowMs = 1200; // ms to show result highlights before clearing
+  const [playedMidis, setPlayedMidis] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -59,6 +70,18 @@ export default function MIDIController() {
   }, []);
 
   useEffect(() => {
+    // load persisted preferences for numbering style and octaves visible
+    try {
+      if (typeof window !== 'undefined') {
+        const persistedStyle = window.localStorage.getItem('numberingStyle');
+        if (persistedStyle) setNumberingStyle(persistedStyle);
+        const persistedOctaves = window.localStorage.getItem('octavesVisible');
+        if (persistedOctaves) setOctavesVisible(Number(persistedOctaves));
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
         const persistedVisual = window.localStorage.getItem('visualKeyboard');
@@ -71,6 +94,37 @@ export default function MIDIController() {
     }
   }, []);
 
+  // compute target MIDI mapping and order labels for learning mode
+  useEffect(() => {
+    if (!chordsModule || !target) {
+      setTargetMidis([]);
+      setTargetOrderMap([]);
+      return;
+    }
+    // If a concrete voicing exists, use it; otherwise build a voicing at baseOctave
+    let midis = [];
+    if (target.voicing && target.voicing.length) midis = target.voicing.slice();
+    else if (target.pcs && target.pcs.length && typeof chordsModule.buildVoicing === 'function') midis = chordsModule.buildVoicing(target.root, target.type, baseOctave);
+    else midis = [];
+    setTargetMidis(midis);
+
+    // compute order map depending on numberingStyle
+    let map = [];
+    if (numberingStyle === 'formula') {
+      if (typeof chordsModule.getChordDegrees === 'function') {
+        map = chordsModule.getChordDegrees(target.type).slice();
+      } else {
+        map = midis.map((_, i) => String(i + 1));
+      }
+    } else {
+      // ascending pitch: assign numbers by ascending midi pitch
+      const pairs = midis.map((m, i) => ({ m, i })).sort((a, b) => a.m - b.m);
+      map = new Array(midis.length);
+      pairs.forEach((p, idx) => { map[p.i] = String(idx + 1); });
+    }
+    setTargetOrderMap(map);
+  }, [chordsModule, target, numberingStyle, baseOctave]);
+
   function newChord() {
     if (!chordsModule) return;
     setHistory((h) => [target, ...h].filter(Boolean).slice(0, 6));
@@ -80,6 +134,7 @@ export default function MIDIController() {
     setTarget(next);
     setResult(null);
     setIsRecording(false);
+    setPlayedMidis([]);
   }
 
   function toggleType(t) {
@@ -94,12 +149,22 @@ export default function MIDIController() {
 
   function handlePlayedNote(noteNumber) {
     // If this is the first note of a new capture window, clear previous result/highlights
-    if (captureRef.current.length === 0) {
-      setResult(null);
+    const startingNewCapture = captureRef.current.length === 0;
+    if (startingNewCapture) {
+      // If the previous result was visible, clear it and highlights when the user starts a new attempt by pressing a key
+      if (result) {
+        setResult(null);
+        setPlayedMidis([]);
+      }
       setIsRecording(true);
+      // clear any pending highlight clear timer
+      if (highlightTimerRef.current) { clearTimeout(highlightTimerRef.current); highlightTimerRef.current = null; }
     }
+
     // store raw MIDI number in order
     captureRef.current.push(noteNumber);
+    // record played notes for keyboard highlighting (keep order, avoid duplicates)
+    setPlayedMidis(prev => (prev.includes(noteNumber) ? prev : [...prev, noteNumber]));
 
     // If we know the expected length, and the user has played enough notes, evaluate immediately
     const expectedLen = target ? ((target.voicing && target.voicing.length) ? target.voicing.length : (target.pcs && target.pcs.length) ? target.pcs.length : null) : null;
@@ -133,7 +198,29 @@ export default function MIDIController() {
       const res = chordsModule.matchChord(pcs, played.map(n => n % 12));
       setResult(res);
     }
+
+    // After showing result, clear visual key highlights after a short delay so user sees feedback
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => {
+      setPlayedMidis([]);
+      highlightTimerRef.current = null;
+    }, highlightShowMs);
   }
+
+  useEffect(() => {
+    if (result && result.match && mode === 'learning') {
+      const t = setTimeout(() => { newChord(); }, 900);
+      return () => clearTimeout(t);
+    }
+  }, [result, mode]);
+
+  // cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
 
   async function connectMIDI() {
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
@@ -195,7 +282,7 @@ export default function MIDIController() {
           </div>
 
           <div className="mb-4">
-            <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} />
+            <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} octaves={octavesVisible} targetMidis={mode === 'learning' ? targetMidis : []} showOrderNumbers={mode === 'learning'} orderMap={targetOrderMap} highlightedMidis={mode === 'learning' ? playedMidis : []} />
             <div className="mt-2 text-sm text-slate-500">
               {isRecording ? (
                 <span className="text-rose-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
@@ -247,6 +334,26 @@ export default function MIDIController() {
                     <div>Base octave: <span className="font-medium">{baseOctave}</span></div>
                     <button onClick={() => { const n = Math.min(8, baseOctave + 1); setBaseOctave(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('keyboardBaseOctave', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">+</button>
                     <div className="text-xs text-slate-400">(Use the octave buttons to shift base octave)</div>
+                  </div>
+
+                  <div className="mt-2 text-sm text-slate-600 flex items-center gap-2">
+                    <button onClick={() => { const n = Math.max(1, octavesVisible - 1); setOctavesVisible(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('octavesVisible', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">-</button>
+                    <div>Visible octaves: <span className="font-medium">{octavesVisible}</span></div>
+                    <button onClick={() => { const n = Math.min(6, octavesVisible + 1); setOctavesVisible(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('octavesVisible', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">+</button>
+                    <div className="text-xs text-slate-400">(Adjust how many octaves are shown on the keyboard)</div>
+                  </div>
+
+                  <div className="mt-3 text-sm">
+                    <div className="text-sm text-slate-500">Mode</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="test" checked={mode === 'test'} onChange={() => { setMode('test'); try { if (typeof window !== 'undefined') window.localStorage.setItem('mode', 'test'); } catch (e) {} }} /> <span>Test</span></label>
+                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="learning" checked={mode === 'learning'} onChange={() => { setMode('learning'); try { if (typeof window !== 'undefined') window.localStorage.setItem('mode', 'learning'); } catch (e) {} }} /> <span>Learning</span></label>
+                    </div>
+                    <div className="mt-2 text-sm text-slate-500">Numbering style</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="numbering" value="formula" checked={numberingStyle === 'formula'} onChange={() => { setNumberingStyle('formula'); try { if (typeof window !== 'undefined') window.localStorage.setItem('numberingStyle', 'formula'); } catch (e) {} }} /> <span>Formula-order (1,3,5)</span></label>
+                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="numbering" value="pitch" checked={numberingStyle === 'pitch'} onChange={() => { setNumberingStyle('pitch'); try { if (typeof window !== 'undefined') window.localStorage.setItem('numberingStyle', 'pitch'); } catch (e) {} }} /> <span>Ascending pitch (1..N)</span></label>
+                    </div>
                   </div>
                 </div>
               </div>
