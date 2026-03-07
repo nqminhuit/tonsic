@@ -3,8 +3,22 @@
 import { useEffect, useRef } from 'react';
 
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_NAMES_FLATS = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 
-export default function Staff({ pcs = [], notes = null, result = null }) {
+export default function Staff({ pcs = [], notes = null, result = null, accidentalStyle = 'auto' }) {
+  // accidentalStyle: 'auto' | 'sharps' | 'flats'
+  // Simple auto heuristic: if any pitch class name contains 'b' prefer flats, if contains '#' prefer sharps, else default to sharps
+  const decideAccidentals = (pcsList) => {
+    if (accidentalStyle === 'sharps') return 'sharps';
+    if (accidentalStyle === 'flats') return 'flats';
+    // auto
+    const names = (pcsList || []).map(p => NOTE_NAMES[(p % 12 + 12) % 12]);
+    if (names.some(n => n.includes('b'))) return 'flats';
+    if (names.some(n => n.includes('#'))) return 'sharps';
+    return 'sharps';
+  };
+  const accidentals = decideAccidentals(pcs);
+
   const input = notes || pcs;
   // result.mismatches: array of {index, expected, played} from matchExactVoicing
 
@@ -64,19 +78,22 @@ export default function Staff({ pcs = [], notes = null, result = null }) {
             return midi;
           });
         }
-        // convert to VexFlow key strings (e.g., 'c/4' or 'c#/5')
+        // convert to VexFlow key strings (e.g., 'c/4' or 'db/5') using chosen accidental style
+        const namesArr = accidentals === 'flats' ? NOTE_NAMES_FLATS : NOTE_NAMES;
         const keys = adjustedMidis.map(midi => {
           const pc = midi % 12;
-          const name = NOTE_NAMES[pc].toLowerCase();
+          const name = namesArr[pc].toLowerCase();
           const octave = Math.floor(midi / 12) - 1;
           return `${name}/${octave}`;
         });
 
         const note = new StaveNote({ keys, duration: 'w' });
-        // add accidentals when necessary (sharp in NOTE_NAMES)
+        // add accidentals when necessary ('#' or 'b')
         keys.forEach((k, i) => {
           if (k.includes('#')) {
             try { note.addAccidental(i, new Accidental('#')); } catch (e) { /* ignore */ }
+          } else if (k.includes('b')) {
+            try { note.addAccidental(i, new Accidental('b')); } catch (e) { /* ignore */ }
           }
         });
 

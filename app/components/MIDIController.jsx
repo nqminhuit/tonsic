@@ -6,7 +6,7 @@ import ScoreCard from './ScoreCard';
 import Staff from './Staff';
 
 export default function MIDIController() {
-  const debounceMs = 1000;
+  const debounceMs = 3000;
   const [chordsModule, setChordsModule] = useState(null);
   const [target, setTarget] = useState(null);
   const [status, setStatus] = useState('Not connected');
@@ -100,6 +100,18 @@ export default function MIDIController() {
     }
     // store raw MIDI number in order
     captureRef.current.push(noteNumber);
+
+    // If we know the expected length, and the user has played enough notes, evaluate immediately
+    const expectedLen = target ? ((target.voicing && target.voicing.length) ? target.voicing.length : (target.pcs && target.pcs.length) ? target.pcs.length : null) : null;
+    if (expectedLen && captureRef.current.length === expectedLen) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const played = Array.from(captureRef.current);
+      captureRef.current.length = 0;
+      setIsRecording(false);
+      evaluate(played);
+      return;
+    }
+
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       const played = Array.from(captureRef.current);
