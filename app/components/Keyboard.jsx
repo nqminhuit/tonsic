@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, visual = false, octaves = 1, targetMidis = [], showOrderNumbers = false, orderMap = [], highlightedMidis = [] }) {
@@ -19,7 +19,6 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
       next.add(midi);
       return next;
     });
-    // keep pressed highlights until higher-level clears them via highlightedMidis/props
   }
 
   if (!visual) {
@@ -28,9 +27,9 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
     return (
       <div className="flex flex-wrap gap-2">
         {notes.map(n => {
-          const isActive = isMidiHighlighted(n);
+          const isActive = pressed.has(n);
           return (
-            <button key={n} onClick={() => clickMidi(n)} className={`px-4 py-2 rounded-md shadow-sm border transform transition ${isActive ? 'bg-indigo-600 text-white scale-95' : 'bg-white text-slate-800 hover:bg-indigo-50'}`}>
+            <button key={n} onClick={() => clickMidi(n)} data-midi={n} className={`px-4 py-2 rounded-md shadow-sm border transform transition key-pulse white-key ${isActive ? 'bg-indigo-600 text-white scale-95' : 'bg-white text-slate-800 hover:bg-indigo-50'}`}>
               {!hideLabels ? NOTE_NAMES[n % 12] : ''}
             </button>
           );
@@ -53,6 +52,7 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
 
   return (
       <div className="relative select-none" style={{ height: 160, overflowX: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+        <style>{`\n          .key-pulse { transform-origin: center bottom; transition: transform 120ms ease, box-shadow 160ms ease; }\n          .key-pulse.pulse { transform: scale(1.06); }\n          .white-key.pulse { box-shadow: 0 8px 22px rgba(99,102,241,0.18); background: linear-gradient(180deg,#fff,#f8fafc); }\n          .black-key.pulse { box-shadow: 0 8px 20px rgba(99,102,241,0.32); transform: scale(1.06); filter: brightness(1.12); }\n        `}</style>
         <div className="flex bg-black/0" style={{ height: '100%', width: totalWidth }}>
         {octaveRange.flatMap((octOffset) => whiteKeys.map((s, _) => {
           const midi = baseMidi + octOffset * 12 + s;
@@ -72,7 +72,7 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
 
           return (
             <div key={midi} className="relative" style={{ width: keyWidth, zIndex: 1 }}>
-              <button onClick={() => clickMidi(midi)} aria-label={NOTE_NAMES[s] + (baseOctave + octOffset)} className={btnClass}>
+              <button onClick={() => clickMidi(midi)} aria-label={NOTE_NAMES[s] + (baseOctave + octOffset)} className={`${btnClass} key-pulse white-key`} data-midi={midi}>
                 {!hideLabels && <div className="text-xs text-center mt-28">{NOTE_NAMES[s]}{baseOctave + octOffset}</div>}
               </button>
               {isTarget && showOrderNumbers && (
@@ -123,7 +123,7 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
           }
 
           return (
-            <button key={`${octOffset}-${k}`} onClick={(e) => { e.stopPropagation(); clickMidi(midi); }} aria-label={NOTE_NAMES[semitone] + (baseOctave + octOffset)} className={`absolute`} style={{ left, top: 0, width: 28, height: 100, borderRadius: 6, zIndex: 5, pointerEvents: 'auto', ...styleObj }}>
+            <button key={`${octOffset}-${k}`} onClick={(e) => { e.stopPropagation(); clickMidi(midi); }} aria-label={NOTE_NAMES[semitone] + (baseOctave + octOffset)} className={`absolute key-pulse black-key`} data-midi={midi} style={{ left, top: 0, width: 28, height: 100, borderRadius: 6, zIndex: 5, pointerEvents: 'auto', ...styleObj }}>
               {!hideLabels && <div className="text-xs" style={{ color: styleObj.color, marginTop: '0.5rem' }}>{NOTE_NAMES[semitone]}{baseOctave + octOffset}</div>}
               {isTarget && showOrderNumbers && (
                 <div className="absolute left-0 right-0 top-2 flex justify-center">

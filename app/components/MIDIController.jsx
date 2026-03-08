@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Keyboard from './Keyboard';
 import ScoreCard from './ScoreCard';
+import SettingsPopup from './SettingsPopup';
 import Staff from './Staff';
 
 export default function MIDIController() {
@@ -15,7 +16,7 @@ export default function MIDIController() {
   // debounce for evaluating played notes (ms). This will be exposed in settings later.
   const [isRecording, setIsRecording] = useState(false);
   const [availableTypes, setAvailableTypes] = useState([]);
-  const [enabledTypes, setEnabledTypes] = useState(new Set(['maj','min','7']));
+  const [enabledTypes, setEnabledTypes] = useState(new Set(['maj', 'min', '7']));
   const [showSettings, setShowSettings] = useState(false);
 
   // Visual piano keyboard mode
@@ -50,7 +51,7 @@ export default function MIDIController() {
         // initialize available chord types and enabled set from localStorage
         const types = Object.keys(m.CHORD_FORMULAS || {});
         setAvailableTypes(types);
-        let enabled = ['maj','min','7'];
+        let enabled = ['maj', 'min', '7'];
         try {
           const persisted = typeof window !== 'undefined' ? window.localStorage.getItem('enabledChordTypes') : null;
           if (persisted) enabled = JSON.parse(persisted) || enabled;
@@ -61,8 +62,8 @@ export default function MIDIController() {
           if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(enabled);
           setEnabledTypes(new Set(enabled));
         } else {
-          if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(['maj','min','7']);
-          setEnabledTypes(new Set(['maj','min','7']));
+          if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(['maj', 'min', '7']);
+          setEnabledTypes(new Set(['maj', 'min', '7']));
         }
       })
       .catch((err) => console.error('Failed to load chords module:', err));
@@ -78,7 +79,7 @@ export default function MIDIController() {
         const persistedOctaves = window.localStorage.getItem('octavesVisible');
         if (persistedOctaves) setOctavesVisible(Number(persistedOctaves));
       }
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   useEffect(() => {
@@ -317,46 +318,22 @@ export default function MIDIController() {
               <button onClick={() => setShowSettings(s => !s)} className="text-sm text-indigo-600">Settings</button>
             </div>
             {showSettings && (
-              <div className="mt-2 space-y-2">
-                {availableTypes.map((t) => (
-                  <label key={t} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={enabledTypes.has(t)} onChange={() => toggleType(t)} />
-                    <span className="capitalize">{t}</span>
-                  </label>
-                ))}
-                <div className="pt-2 border-t border-slate-100">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={visualKeyboard} onChange={() => { const n = !visualKeyboard; setVisualKeyboard(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('visualKeyboard', String(n)); } catch (e) {} }} />
-                    <span>Visual piano keyboard</span>
-                  </label>
-                  <div className="mt-2 text-sm text-slate-600 flex items-center gap-2">
-                    <button onClick={() => { const n = Math.max(0, baseOctave - 1); setBaseOctave(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('keyboardBaseOctave', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">-</button>
-                    <div>Base octave: <span className="font-medium">{baseOctave}</span></div>
-                    <button onClick={() => { const n = Math.min(8, baseOctave + 1); setBaseOctave(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('keyboardBaseOctave', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">+</button>
-                    <div className="text-xs text-slate-400">(Use the octave buttons to shift base octave)</div>
-                  </div>
-
-                  <div className="mt-2 text-sm text-slate-600 flex items-center gap-2">
-                    <button onClick={() => { const n = Math.max(1, octavesVisible - 1); setOctavesVisible(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('octavesVisible', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">-</button>
-                    <div>Visible octaves: <span className="font-medium">{octavesVisible}</span></div>
-                    <button onClick={() => { const n = Math.min(6, octavesVisible + 1); setOctavesVisible(n); try { if (typeof window !== 'undefined') window.localStorage.setItem('octavesVisible', String(n)); } catch (e) {} }} className="px-2 py-1 bg-gray-100 rounded">+</button>
-                    <div className="text-xs text-slate-400">(Adjust how many octaves are shown on the keyboard)</div>
-                  </div>
-
-                  <div className="mt-3 text-sm">
-                    <div className="text-sm text-slate-500">Mode</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="test" checked={mode === 'test'} onChange={() => { setMode('test'); try { if (typeof window !== 'undefined') window.localStorage.setItem('mode', 'test'); } catch (e) {} }} /> <span>Test</span></label>
-                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="learning" checked={mode === 'learning'} onChange={() => { setMode('learning'); try { if (typeof window !== 'undefined') window.localStorage.setItem('mode', 'learning'); } catch (e) {} }} /> <span>Learning</span></label>
-                    </div>
-                    <div className="mt-2 text-sm text-slate-500">Numbering style</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="numbering" value="formula" checked={numberingStyle === 'formula'} onChange={() => { setNumberingStyle('formula'); try { if (typeof window !== 'undefined') window.localStorage.setItem('numberingStyle', 'formula'); } catch (e) {} }} /> <span>Formula-order (1,3,5)</span></label>
-                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="numbering" value="pitch" checked={numberingStyle === 'pitch'} onChange={() => { setNumberingStyle('pitch'); try { if (typeof window !== 'undefined') window.localStorage.setItem('numberingStyle', 'pitch'); } catch (e) {} }} /> <span>Ascending pitch (1..N)</span></label>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <SettingsPopup
+                availableTypes={availableTypes}
+                enabledTypes={enabledTypes}
+                toggleType={toggleType}
+                visualKeyboard={visualKeyboard}
+                setVisualKeyboard={setVisualKeyboard}
+                baseOctave={baseOctave}
+                setBaseOctave={setBaseOctave}
+                octavesVisible={octavesVisible}
+                setOctavesVisible={setOctavesVisible}
+                mode={mode}
+                setMode={setMode}
+                numberingStyle={numberingStyle}
+                setNumberingStyle={setNumberingStyle}
+                onClose={() => setShowSettings(false)}
+              />
             )}
           </div>
         </aside>
