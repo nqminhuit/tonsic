@@ -254,88 +254,86 @@ export default function MIDIController() {
   }
 
   return (
-    <div className="p-6 rounded-2xl bg-gradient-to-b from-white/70 to-white/50 shadow-xl">
-      <div className="grid lg:grid-cols-4 gap-6 items-start">
-        <div className="lg:col-span-3">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-sm text-slate-500">Current target</div>
-              <div className="mt-1">
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-lg">{target ? target.name : '—'}</span>
-                  <div className="text-sm text-slate-600">Play the chord or use the on-screen keys</div>
-                </div>
-                <div className="mt-3">
-                  <Staff notes={target ? (target.voicing || target.pcs) : []} result={result} />
-                </div>
+    <div className="grid lg:grid-cols-4 gap-6 items-start">
+      <div className="lg:col-span-3">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-sm text-slate-500">Current target</div>
+            <div className="mt-1">
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-lg">{target ? target.name : '—'}</span>
+                <div className="text-sm text-slate-600">Play the chord or use the on-screen keys</div>
+              </div>
+              <div className="mt-3">
+                <Staff notes={target ? (target.voicing || target.pcs) : []} result={result} />
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={connectMIDI} className="px-4 py-2 bg-indigo-600 cursor-pointer text-white rounded-md shadow hover:bg-indigo-900 flex items-center gap-2">
-                Connect
-              </button>
-              <button onClick={newChord} className="px-4 py-2 bg-rose-500 cursor-pointer text-white rounded-md shadow hover:bg-rose-800 flex items-center gap-2">
-                New
-              </button>
-            </div>
           </div>
-
-          <div className="mb-4">
-            <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} octaves={octavesVisible} targetMidis={mode === 'learning' ? targetMidis : []} showOrderNumbers={mode === 'learning'} orderMap={targetOrderMap} highlightedMidis={mode === 'learning' ? playedMidis : []} />
-            <div className="mt-2 text-sm text-slate-500">
-              {isRecording ? (
-                <span className="text-green-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
-              ) : (
-                <span>Ready — evaluation delay: {debounceMs}ms</span>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-sm text-slate-500">Recent targets</div>
-            <div className="flex flex-wrap gap-2">
-              {history.length === 0 ? <div className="text-sm text-slate-400">No history yet</div> : history.map((h, i) => (
-                <div key={i} className="px-3 py-1 bg-white border border-slate-100 rounded-full text-sm text-slate-700 shadow-sm">{h.name}</div>
-              ))}
-            </div>
+          <div className="flex items-center gap-3">
+            <button onClick={connectMIDI} className="px-4 py-2 bg-indigo-600 cursor-pointer text-white rounded-md shadow hover:bg-indigo-900 flex items-center gap-2">
+              Connect
+            </button>
+            <button onClick={newChord} className="px-4 py-2 bg-rose-500 cursor-pointer text-white rounded-md shadow hover:bg-rose-800 flex items-center gap-2">
+              New
+            </button>
           </div>
         </div>
 
-        <aside className="lg:col-span-1">
-          <div className="mb-4">
-            <div className="text-sm text-slate-500">Result</div>
-            <ScoreCard result={result} />
-          </div>
-
-          <div className="text-sm text-slate-500">Status</div>
-          <div className="mt-2 text-sm text-slate-600">{status}</div>
-
-          <div className="mt-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-500">Chord types</div>
-              <button onClick={() => setShowSettings(s => !s)} className="px-4 py-2 text-white rounded-md cursor-pointer bg-indigo-600 hover:bg-indigo-900 text-indigo-600">Settings</button>
-            </div>
-            {showSettings && (
-              <SettingsPopup
-                availableTypes={availableTypes}
-                enabledTypes={enabledTypes}
-                toggleType={toggleType}
-                visualKeyboard={visualKeyboard}
-                setVisualKeyboard={setVisualKeyboard}
-                baseOctave={baseOctave}
-                setBaseOctave={setBaseOctave}
-                octavesVisible={octavesVisible}
-                setOctavesVisible={setOctavesVisible}
-                mode={mode}
-                setMode={setMode}
-                numberingStyle={numberingStyle}
-                setNumberingStyle={setNumberingStyle}
-                onClose={() => setShowSettings(false)}
-              />
+        <div className="mb-4">
+          <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} octaves={octavesVisible} targetMidis={mode === 'learning' ? targetMidis : []} showOrderNumbers={mode === 'learning'} orderMap={targetOrderMap} highlightedMidis={mode === 'learning' ? playedMidis : []} />
+          <div className="mt-2 text-sm text-slate-500">
+            {isRecording ? (
+              <span className="text-green-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
+            ) : (
+              <span>Ready — evaluation delay: {debounceMs}ms</span>
             )}
           </div>
-        </aside>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm text-slate-500">Recent targets</div>
+          <div className="flex flex-wrap gap-2">
+            {history.length === 0 ? <div className="text-sm text-slate-400">No history yet</div> : history.map((h, i) => (
+              <div key={i} className="px-3 py-1 bg-white border border-slate-100 rounded-full text-sm text-slate-700 shadow-sm">{h.name}</div>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <aside className="lg:col-span-1">
+        <div className="mb-4">
+          <div className="text-sm text-slate-500">Result</div>
+          <ScoreCard result={result} />
+        </div>
+
+        <div className="text-sm text-slate-500">Status</div>
+        <div className={"mt-2 text-sm " + (status === 'Connected' ? 'text-green-600' : 'text-red-600')}>{status}</div>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-slate-500">Chord types</div>
+            <button onClick={() => setShowSettings(s => !s)} className="px-4 py-2 text-white rounded-md cursor-pointer bg-indigo-600 hover:bg-indigo-900 text-indigo-600">Settings</button>
+          </div>
+          {showSettings && (
+            <SettingsPopup
+              availableTypes={availableTypes}
+              enabledTypes={enabledTypes}
+              toggleType={toggleType}
+              visualKeyboard={visualKeyboard}
+              setVisualKeyboard={setVisualKeyboard}
+              baseOctave={baseOctave}
+              setBaseOctave={setBaseOctave}
+              octavesVisible={octavesVisible}
+              setOctavesVisible={setOctavesVisible}
+              mode={mode}
+              setMode={setMode}
+              numberingStyle={numberingStyle}
+              setNumberingStyle={setNumberingStyle}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
