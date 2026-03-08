@@ -255,8 +255,8 @@ export default function MIDIController() {
 
   return (
     <div className="p-6 rounded-2xl bg-gradient-to-b from-white/70 to-white/50 shadow-xl">
-      <div className="grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2">
+      <div className="grid lg:grid-cols-4 gap-6 items-start">
+        <div className="lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-sm text-slate-500">Current target</div>
@@ -271,12 +271,10 @@ export default function MIDIController() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={connectMIDI} className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow hover:bg-indigo-700 flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-90"><path d="M12 2v20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M5 7v10a7 7 0 0014 0V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <button onClick={connectMIDI} className="px-4 py-2 bg-indigo-600 cursor-pointer text-white rounded-md shadow hover:bg-indigo-900 flex items-center gap-2">
                 Connect
               </button>
-              <button onClick={newChord} className="px-4 py-2 bg-rose-500 text-white rounded-md shadow hover:bg-rose-600 flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <button onClick={newChord} className="px-4 py-2 bg-rose-500 cursor-pointer text-white rounded-md shadow hover:bg-rose-800 flex items-center gap-2">
                 New
               </button>
             </div>
@@ -286,7 +284,7 @@ export default function MIDIController() {
             <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} octaves={octavesVisible} targetMidis={mode === 'learning' ? targetMidis : []} showOrderNumbers={mode === 'learning'} orderMap={targetOrderMap} highlightedMidis={mode === 'learning' ? playedMidis : []} />
             <div className="mt-2 text-sm text-slate-500">
               {isRecording ? (
-                <span className="text-rose-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
+                <span className="text-green-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
               ) : (
                 <span>Ready — evaluation delay: {debounceMs}ms</span>
               )}
@@ -315,7 +313,7 @@ export default function MIDIController() {
           <div className="mt-4">
             <div className="flex items-center justify-between">
               <div className="text-sm text-slate-500">Chord types</div>
-              <button onClick={() => setShowSettings(s => !s)} className="text-sm text-indigo-600">Settings</button>
+              <button onClick={() => setShowSettings(s => !s)} className="px-4 py-2 text-white rounded-md cursor-pointer bg-indigo-600 hover:bg-indigo-900 text-indigo-600">Settings</button>
             </div>
             {showSettings && (
               <SettingsPopup
