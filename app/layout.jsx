@@ -6,7 +6,7 @@ export default function RootLayout({ children }) {
       <head />
       <body className="bg-gradient-to-br from-indigo-50 via-white to-rose-50 min-h-screen text-slate-900">
         <div className="min-h-screen flex flex-col">
-          <header className="py-8">
+          <header className="py-3">
             <div className="max-w-4xl mx-auto px-4">
               <h1 className="text-4xl font-extrabold text-center text-indigo-700">Tonsic</h1>
               <p className="mt-2 text-center text-slate-600">Interactive chord trainer — Web MIDI + on-screen keyboard</p>

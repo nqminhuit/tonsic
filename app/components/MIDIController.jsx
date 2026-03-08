@@ -28,7 +28,7 @@ export default function MIDIController() {
   // computed target mapping for keyboard highlights
   const [targetMidis, setTargetMidis] = useState([]);
   const [targetOrderMap, setTargetOrderMap] = useState([]);
-  const [octavesVisible, setOctavesVisible] = useState(2);
+  const [octavesVisible, setOctavesVisible] = useState(3);
 
   const captureRef = useRef([]);
   const timerRef = useRef(null);
