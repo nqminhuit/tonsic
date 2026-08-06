@@ -1,24 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, visual = false, octaves = 1, targetMidis = [], showOrderNumbers = false, orderMap = [], highlightedMidis = [] }) {
+export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, visual = false, octaves = 1, targetMidis = [], showOrderNumbers = false, orderMap = [], highlightedMidis = null }) {
   const [pressed, setPressed] = useState(new Set());
   const baseMidi = (Number(baseOctave) + 1) * 12;
-  // Sync internal pressed set with externally-provided highlightedMidis when it changes
-  useEffect(() => {
-    if (!Array.isArray(highlightedMidis)) return;
-    setPressed(new Set(highlightedMidis));
-  }, [highlightedMidis]);
+  const effectivePressed = Array.isArray(highlightedMidis) ? new Set(highlightedMidis) : pressed;
 
   function clickMidi(midi) {
     onPlay(midi);
-    setPressed(prev => {
-      const next = new Set(prev);
-      next.add(midi);
-      return next;
-    });
+    if (!Array.isArray(highlightedMidis)) {
+      setPressed(prev => {
+        const next = new Set(prev);
+        next.add(midi);
+        return next;
+      });
+    }
   }
 
   if (!visual) {
@@ -27,7 +25,7 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
     return (
       <div className="flex flex-wrap gap-2">
         {notes.map(n => {
-          const isActive = pressed.has(n);
+          const isActive = effectivePressed.has(n);
           return (
             <button key={n} onClick={() => clickMidi(n)} data-midi={n} className={`px-4 py-2 rounded-md shadow-sm border transform transition key-pulse white-key ${isActive ? 'bg-indigo-600 text-white scale-95' : 'bg-white text-slate-800 hover:bg-indigo-50'}`}>
               {!hideLabels ? NOTE_NAMES[n % 12] : ''}
@@ -56,7 +54,7 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
         <div className="flex bg-black/0" style={{ height: '100%', width: totalWidth }}>
         {octaveRange.flatMap((octOffset) => whiteKeys.map((s, _) => {
           const midi = baseMidi + octOffset * 12 + s;
-          const isPressed = pressed.has(midi);
+          const isPressed = effectivePressed.has(midi);
           const isTarget = Array.isArray(targetMidis) && targetMidis.includes(midi);
           const isCorrect = isPressed && isTarget;
           const isWrong = isPressed && !isTarget;
@@ -91,7 +89,7 @@ export default function Keyboard({ onPlay, hideLabels = false, baseOctave = 4, v
           const posIdx = blackKeys[semitone];
           const midi = baseMidi + octOffset * 12 + semitone;
           const left = (octOffset * whiteCountPerOct + posIdx) * keyWidth + 34; // position offset to sit between white keys
-          const isPressed = pressed.has(midi);
+          const isPressed = effectivePressed.has(midi);
           const isTarget = Array.isArray(targetMidis) && targetMidis.includes(midi);
           const isCorrect = isPressed && isTarget;
           const isWrong = isPressed && !isTarget;

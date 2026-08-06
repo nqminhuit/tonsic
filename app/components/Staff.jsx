@@ -28,6 +28,7 @@ export default function Staff({ pcs = [], notes = null, result = null, accidenta
     let mounted = true;
     let renderer = null;
     let context = null;
+    const container = containerRef.current;
 
     async function render() {
       try {
@@ -35,7 +36,7 @@ export default function Staff({ pcs = [], notes = null, result = null, accidenta
         const VF = mod.Flow || mod.Vex || mod.default?.Flow || mod.default || mod;
         const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = VF;
         if (!mounted) return;
-        const el = containerRef.current;
+        const el = container;
         if (!el) return;
         // clear
         el.innerHTML = '';
@@ -140,11 +141,11 @@ export default function Staff({ pcs = [], notes = null, result = null, accidenta
     render();
     return () => {
       mounted = false;
-      if (renderer && renderer.getContext) {
-        try { containerRef.current.innerHTML = ''; } catch (e) {}
+      if (renderer && renderer.getContext && container) {
+        try { container.innerHTML = ''; } catch (e) {}
       }
     };
-  }, [pcs, notes, notes?.length, result]);
+  }, [accidentals, input, result]);
 
   return (
     <div className="staff-container w-full">

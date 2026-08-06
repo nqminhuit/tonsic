@@ -1,13 +1,83 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
 import Keyboard from './Keyboard';
 import ScoreCard from './ScoreCard';
 import SettingsPopup from './SettingsPopup';
 import Staff from './Staff';
 
+const DEFAULT_PREFERENCES = {
+  visualKeyboard: true,
+  baseOctave: 4,
+  mode: 'learning',
+  numberingStyle: 'formula',
+  octavesVisible: 3,
+};
+
+const DEFAULT_PREFERENCES_SNAPSHOT = JSON.stringify(DEFAULT_PREFERENCES);
+const PREFERENCES_EVENT = 'tonsic:preferences-changed';
+
+function readPreferences() {
+  if (typeof window === 'undefined') return DEFAULT_PREFERENCES;
+
+  const next = { ...DEFAULT_PREFERENCES };
+
+  try {
+    const persistedStyle = window.localStorage.getItem('numberingStyle');
+    if (persistedStyle) next.numberingStyle = persistedStyle;
+
+    const persistedMode = window.localStorage.getItem('mode');
+    if (persistedMode === 'test' || persistedMode === 'learning') next.mode = persistedMode;
+
+    const persistedOctaves = Number(window.localStorage.getItem('octavesVisible'));
+    if (Number.isFinite(persistedOctaves) && persistedOctaves > 0) next.octavesVisible = persistedOctaves;
+
+    const persistedVisual = window.localStorage.getItem('visualKeyboard');
+    if (persistedVisual !== null) next.visualKeyboard = persistedVisual === 'true';
+
+    const persistedBaseOctave = Number(window.localStorage.getItem('keyboardBaseOctave'));
+    if (Number.isFinite(persistedBaseOctave)) next.baseOctave = persistedBaseOctave;
+  } catch (e) {
+    // ignore
+  }
+
+  return next;
+}
+
+function subscribeToPreferences(callback) {
+  if (typeof window === 'undefined') return () => {};
+
+  function onChange() {
+    callback();
+  }
+
+  window.addEventListener('storage', onChange);
+  window.addEventListener(PREFERENCES_EVENT, onChange);
+
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener(PREFERENCES_EVENT, onChange);
+  };
+}
+
+function getPreferencesSnapshot() {
+  return JSON.stringify(readPreferences());
+}
+
+function persistPreference(key, value) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(key, String(value));
+    window.dispatchEvent(new Event(PREFERENCES_EVENT));
+  } catch (e) {
+    // ignore
+  }
+}
+
 export default function MIDIController() {
   const debounceMs = 3000;
+  const preferences = JSON.parse(useSyncExternalStore(subscribeToPreferences, getPreferencesSnapshot, () => DEFAULT_PREFERENCES_SNAPSHOT));
   const [chordsModule, setChordsModule] = useState(null);
   const [target, setTarget] = useState(null);
   const [status, setStatus] = useState('Not connected');
@@ -20,16 +90,7 @@ export default function MIDIController() {
   const [showSettings, setShowSettings] = useState(false);
 
   // Visual piano keyboard mode
-  const [visualKeyboard, setVisualKeyboard] = useState(true);
-  const [baseOctave, setBaseOctave] = useState(4);
-  // mode: 'test' | 'learning'
-  const [mode, setMode] = useState('learning');
-  // numbering style: 'formula' (1,3,5) or 'pitch' (ascending order numbers)
-  const [numberingStyle, setNumberingStyle] = useState('formula');
-  // computed target mapping for keyboard highlights
-  const [targetMidis, setTargetMidis] = useState([]);
-  const [targetOrderMap, setTargetOrderMap] = useState([]);
-  const [octavesVisible, setOctavesVisible] = useState(3);
+  const { visualKeyboard, baseOctave, mode, numberingStyle, octavesVisible } = preferences;
 
   const captureRef = useRef([]);
   const timerRef = useRef(null);
@@ -70,63 +131,24 @@ export default function MIDIController() {
     return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
-    // load persisted preferences for numbering style, mode, and octaves visible
-    try {
-      if (typeof window !== 'undefined') {
-        const persistedStyle = window.localStorage.getItem('numberingStyle');
-        if (persistedStyle) setNumberingStyle(persistedStyle);
-        const persistedMode = window.localStorage.getItem('mode');
-        if (persistedMode === 'test' || persistedMode === 'learning') setMode(persistedMode);
-        const persistedOctaves = window.localStorage.getItem('octavesVisible');
-        if (persistedOctaves) setOctavesVisible(Number(persistedOctaves));
-      }
-    } catch (e) { }
-  }, []);
+  let targetMidis = [];
+  let targetOrderMap = [];
+  if (chordsModule && target) {
+    if (target.voicing && target.voicing.length) targetMidis = target.voicing.slice();
+    else if (target.pcs && target.pcs.length && typeof chordsModule.buildVoicing === 'function') targetMidis = chordsModule.buildVoicing(target.root, target.type, baseOctave);
 
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const persistedVisual = window.localStorage.getItem('visualKeyboard');
-        const persistedOct = window.localStorage.getItem('keyboardBaseOctave');
-        if (persistedVisual !== null) setVisualKeyboard(persistedVisual === 'true');
-        if (persistedOct !== null) setBaseOctave(Number(persistedOct));
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  // compute target MIDI mapping and order labels for learning mode
-  useEffect(() => {
-    if (!chordsModule || !target) {
-      setTargetMidis([]);
-      setTargetOrderMap([]);
-      return;
-    }
-    // If a concrete voicing exists, use it; otherwise build a voicing at baseOctave
-    let midis = [];
-    if (target.voicing && target.voicing.length) midis = target.voicing.slice();
-    else if (target.pcs && target.pcs.length && typeof chordsModule.buildVoicing === 'function') midis = chordsModule.buildVoicing(target.root, target.type, baseOctave);
-    else midis = [];
-    setTargetMidis(midis);
-
-    // compute order map depending on numberingStyle
-    let map = [];
     if (numberingStyle === 'formula') {
       if (typeof chordsModule.getChordDegrees === 'function') {
-        map = chordsModule.getChordDegrees(target.type).slice();
+        targetOrderMap = chordsModule.getChordDegrees(target.type).slice();
       } else {
-        map = midis.map((_, i) => String(i + 1));
+        targetOrderMap = targetMidis.map((_, i) => String(i + 1));
       }
     } else {
-      // ascending pitch: assign numbers by ascending midi pitch
-      const pairs = midis.map((m, i) => ({ m, i })).sort((a, b) => a.m - b.m);
-      map = new Array(midis.length);
-      pairs.forEach((p, idx) => { map[p.i] = String(idx + 1); });
+      const pairs = targetMidis.map((m, i) => ({ m, i })).sort((a, b) => a.m - b.m);
+      targetOrderMap = new Array(targetMidis.length);
+      pairs.forEach((p, idx) => { targetOrderMap[p.i] = String(idx + 1); });
     }
-    setTargetOrderMap(map);
-  }, [chordsModule, target, numberingStyle, baseOctave]);
+  }
 
   function newChord() {
     if (!chordsModule) return;
@@ -210,9 +232,13 @@ export default function MIDIController() {
     }, highlightShowMs);
   }
 
+  const advanceChord = useEffectEvent(() => {
+    newChord();
+  });
+
   useEffect(() => {
     if (result && result.match && mode === 'learning') {
-      const t = setTimeout(() => { newChord(); }, 900);
+      const t = setTimeout(() => { advanceChord(); }, 900);
       return () => clearTimeout(t);
     }
   }, [result, mode]);
@@ -322,15 +348,15 @@ export default function MIDIController() {
               enabledTypes={enabledTypes}
               toggleType={toggleType}
               visualKeyboard={visualKeyboard}
-              setVisualKeyboard={setVisualKeyboard}
+              setVisualKeyboard={(nextValue) => persistPreference('visualKeyboard', nextValue)}
               baseOctave={baseOctave}
-              setBaseOctave={setBaseOctave}
+              setBaseOctave={(nextValue) => persistPreference('keyboardBaseOctave', nextValue)}
               octavesVisible={octavesVisible}
-              setOctavesVisible={setOctavesVisible}
+              setOctavesVisible={(nextValue) => persistPreference('octavesVisible', nextValue)}
               mode={mode}
-              setMode={setMode}
+              setMode={(nextValue) => persistPreference('mode', nextValue)}
               numberingStyle={numberingStyle}
-              setNumberingStyle={setNumberingStyle}
+              setNumberingStyle={(nextValue) => persistPreference('numberingStyle', nextValue)}
               onClose={() => setShowSettings(false)}
             />
           )}
