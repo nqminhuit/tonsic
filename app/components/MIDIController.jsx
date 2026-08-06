@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import Keyboard from './Keyboard';
 import ScoreCard from './ScoreCard';
 import SettingsPopup from './SettingsPopup';
@@ -15,6 +15,7 @@ import {
   persistPreference,
   useMIDIControllerPreferences,
 } from './midiControllerPreferences';
+import { useExactVoicingCapture } from './useExactVoicingCapture';
 
 export default function MIDIController() {
   const debounceMs = 3000;
@@ -24,8 +25,6 @@ export default function MIDIController() {
   const [status, setStatus] = useState('Not connected');
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
-  // debounce for evaluating played notes (ms). This will be exposed in settings later.
-  const [isRecording, setIsRecording] = useState(false);
   const [availableTypes, setAvailableTypes] = useState([]);
   const [enabledTypes, setEnabledTypes] = useState(new Set(['maj', 'min', '7']));
   const [showSettings, setShowSettings] = useState(false);
@@ -33,11 +32,7 @@ export default function MIDIController() {
   // Visual piano keyboard mode
   const { visualKeyboard, baseOctave, mode, numberingStyle, octavesVisible } = preferences;
 
-  const captureRef = useRef([]);
-  const timerRef = useRef(null);
-  const highlightTimerRef = useRef(null);
   const highlightShowMs = 1200; // ms to show result highlights before clearing
-  const [playedMidis, setPlayedMidis] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -64,64 +59,7 @@ export default function MIDIController() {
     baseOctave,
     numberingStyle,
   );
-
-  function newChord() {
-    if (!chordsModule) return;
-    setHistory((h) => [target, ...h].filter(Boolean).slice(0, 6));
-    setTarget(createRandomTarget(chordsModule));
-    setResult(null);
-    setIsRecording(false);
-    setPlayedMidis([]);
-  }
-
-  function toggleType(t) {
-    const newSet = new Set(enabledTypes);
-    if (newSet.has(t)) newSet.delete(t);
-    else newSet.add(t);
-    setEnabledTypes(newSet);
-    const arr = [...newSet];
-    if (chordsModule && typeof chordsModule.setEnabledChordTypes === 'function') chordsModule.setEnabledChordTypes(arr);
-    persistEnabledTypes(arr);
-  }
-
-  function handlePlayedNote(noteNumber) {
-    // If this is the first note of a new capture window, clear previous result/highlights
-    const startingNewCapture = captureRef.current.length === 0;
-    if (startingNewCapture) {
-      // If the previous result was visible, clear it and highlights when the user starts a new attempt by pressing a key
-      if (result) {
-        setResult(null);
-        setPlayedMidis([]);
-      }
-      setIsRecording(true);
-      // clear any pending highlight clear timer
-      if (highlightTimerRef.current) { clearTimeout(highlightTimerRef.current); highlightTimerRef.current = null; }
-    }
-
-    // store raw MIDI number in order
-    captureRef.current.push(noteNumber);
-    // record played notes for keyboard highlighting (keep order, avoid duplicates)
-    setPlayedMidis(prev => (prev.includes(noteNumber) ? prev : [...prev, noteNumber]));
-
-    // If we know the expected length, and the user has played enough notes, evaluate immediately
-    const expectedLen = target ? ((target.voicing && target.voicing.length) ? target.voicing.length : (target.pcs && target.pcs.length) ? target.pcs.length : null) : null;
-    if (expectedLen && captureRef.current.length === expectedLen) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      const played = Array.from(captureRef.current);
-      captureRef.current.length = 0;
-      setIsRecording(false);
-      evaluate(played);
-      return;
-    }
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const played = Array.from(captureRef.current);
-      captureRef.current.length = 0;
-      setIsRecording(false);
-      evaluate(played);
-    }, debounceMs);
-  }
+  const expectedLen = target ? ((target.voicing && target.voicing.length) ? target.voicing.length : (target.pcs && target.pcs.length) ? target.pcs.length : null) : null;
 
   function evaluate(played) {
     if (!target || !chordsModule) return;
@@ -136,12 +74,45 @@ export default function MIDIController() {
       setResult(res);
     }
 
-    // After showing result, clear visual key highlights after a short delay so user sees feedback
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-    highlightTimerRef.current = setTimeout(() => {
-      setPlayedMidis([]);
-      highlightTimerRef.current = null;
-    }, highlightShowMs);
+    showCaptureFeedback();
+  }
+
+  const {
+    handlePlayedNote,
+    isRecording,
+    playedMidis,
+    resetCaptureState,
+    resetPlayedMidis,
+    showCaptureFeedback,
+  } = useExactVoicingCapture({
+    debounceMs,
+    expectedLength: expectedLen,
+    highlightShowMs,
+    onCaptureComplete: evaluate,
+    onNewAttempt: () => {
+      if (result) {
+        setResult(null);
+        resetPlayedMidis();
+      }
+    },
+  });
+
+  function newChord() {
+    if (!chordsModule) return;
+    setHistory((h) => [target, ...h].filter(Boolean).slice(0, 6));
+    setTarget(createRandomTarget(chordsModule));
+    setResult(null);
+    resetCaptureState();
+  }
+
+  function toggleType(t) {
+    const newSet = new Set(enabledTypes);
+    if (newSet.has(t)) newSet.delete(t);
+    else newSet.add(t);
+    setEnabledTypes(newSet);
+    const arr = [...newSet];
+    if (chordsModule && typeof chordsModule.setEnabledChordTypes === 'function') chordsModule.setEnabledChordTypes(arr);
+    persistEnabledTypes(arr);
   }
 
   const advanceChord = useEffectEvent(() => {
@@ -154,14 +125,6 @@ export default function MIDIController() {
       return () => clearTimeout(t);
     }
   }, [result, mode]);
-
-  // cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-    };
-  }, []);
 
   async function connectMIDI() {
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
