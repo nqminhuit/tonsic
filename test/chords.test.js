@@ -28,6 +28,7 @@ test('notation helpers choose accidental styles and spell note names consistentl
 
   assert.equal(chords.noteNameForPitchClass(1, 'auto', [1, 3, 8, 10]), 'Db');
   assert.equal(chords.noteNameForPitchClass(1, 'auto', [1, 6]), 'C#');
+  assert.equal(chords.noteNameForMidi(61, 'auto', [61, 63, 68, 70]), 'Db4');
   assert.equal(chords.noteNameForPitchClass(-2, 'flats'), 'Bb');
   assert.equal(chords.noteNameForPitchClass(13, 'sharps'), 'C#');
 });
@@ -72,15 +73,15 @@ test('matchExactVoicing requires exact order and length', () => {
   assert.equal(reordered.match, false);
   assert.equal(reordered.score, 33);
   assert.deepStrictEqual(reordered.mismatches, [
-    { index: 1, expected: 64, played: 67 },
-    { index: 2, expected: 67, played: 64 },
+    { index: 1, expected: 64, expectedName: 'E4', played: 67, playedName: 'G4' },
+    { index: 2, expected: 67, expectedName: 'G4', played: 64, playedName: 'E4' },
   ]);
 
   const shorter = chords.matchExactVoicing([60, 64, 67], [60, 64]);
   assert.equal(shorter.match, false);
   assert.equal(shorter.score, 67);
   assert.deepStrictEqual(shorter.mismatches, [
-    { index: 2, expected: 67, played: undefined },
+    { index: 2, expected: 67, expectedName: 'G4', played: undefined, playedName: null },
   ]);
 });
 

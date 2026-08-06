@@ -132,4 +132,21 @@ describe('MIDIController UI behavior', () => {
     const historySection = screen.getByText('Recent targets').parentElement;
     expect(within(historySection).getByText('C')).toBeTruthy();
   });
+
+  it('shows per-position mismatch feedback for exact voicing errors', async () => {
+    window.localStorage.setItem('enabledChordTypes', JSON.stringify(['maj']));
+    seedMathRandom([0, 0]);
+
+    render(<MIDIController />);
+
+    await screen.findByText('C');
+
+    fireEvent.click(screen.getByRole('button', { name: 'play-60' }));
+    fireEvent.click(screen.getByRole('button', { name: 'play-67' }));
+    fireEvent.click(screen.getByRole('button', { name: 'play-64' }));
+
+    await screen.findByText('Voicing or note order did not match');
+    expect(screen.getByText('Position 2: expected E4, played G4')).toBeTruthy();
+    expect(screen.getByText('Position 3: expected G4, played E4')).toBeTruthy();
+  });
 });

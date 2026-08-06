@@ -5,6 +5,7 @@ const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 export default function ScoreCard({ result }) {
   if (!result) return <div className="text-slate-600">Play the exact voicing to evaluate...</div>;
   const pct = Math.max(0, Math.min(100, result.score));
+  const mismatchRows = Array.isArray(result.mismatches) ? result.mismatches.filter((m) => m.expectedName || m.playedName) : [];
   return (
     <div className="p-4 bg-white border border-slate-100 rounded-md shadow-sm">
       <div className="flex items-center justify-between">
@@ -23,6 +24,15 @@ export default function ScoreCard({ result }) {
         <div className="text-sm">{result.match ? <span className="text-green-600 font-medium">Exact voicing match!</span> : <span className="text-amber-600 font-medium">Voicing or note order did not match</span>}</div>
         {result.missing && result.missing.length ? <div className="mt-2 text-sm text-slate-600">Missing: {result.missing.map(n => NOTE_NAMES[n]).join(', ')}</div> : null}
         {result.extra && result.extra.length ? <div className="mt-1 text-sm text-slate-600">Extra: {result.extra.map(n => NOTE_NAMES[n]).join(', ')}</div> : null}
+        {mismatchRows.length ? (
+          <div className="mt-2 text-sm text-slate-600">
+            {mismatchRows.map((mismatch) => (
+              <div key={mismatch.index}>
+                {`Position ${mismatch.index + 1}: expected ${mismatch.expectedName}, played ${mismatch.playedName || 'nothing'}`}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
