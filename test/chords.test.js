@@ -19,6 +19,19 @@ test('getChordDegrees exposes configured degree labels and falls back to major',
   assert.deepStrictEqual(chords.getChordDegrees('unknown'), ['1', '3', '5']);
 });
 
+test('notation helpers choose accidental styles and spell note names consistently', () => {
+  assert.equal(chords.chooseAccidentalStyle([1, 3, 8, 10], 'auto'), 'flats');
+  assert.equal(chords.chooseAccidentalStyle([1, 6], 'auto'), 'sharps');
+  assert.equal(chords.chooseAccidentalStyle([0, 5, 7], 'auto'), 'sharps');
+  assert.equal(chords.chooseAccidentalStyle([1, 3, 6], 'sharps'), 'sharps');
+  assert.equal(chords.chooseAccidentalStyle([1, 3, 6], 'flats'), 'flats');
+
+  assert.equal(chords.noteNameForPitchClass(1, 'auto', [1, 3, 8, 10]), 'Db');
+  assert.equal(chords.noteNameForPitchClass(1, 'auto', [1, 6]), 'C#');
+  assert.equal(chords.noteNameForPitchClass(-2, 'flats'), 'Bb');
+  assert.equal(chords.noteNameForPitchClass(13, 'sharps'), 'C#');
+});
+
 test('buildVoicing and getChordInfo return aligned note information', () => {
   assert.deepStrictEqual(chords.buildVoicing(0, 'maj', 4), [60, 64, 67]);
 

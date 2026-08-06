@@ -1,25 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-
-const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const NOTE_NAMES_FLATS = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+import { chooseAccidentalStyle, noteNameForPitchClass } from '../../lib/chords';
 
 export default function Staff({ pcs = [], notes = null, result = null, accidentalStyle = 'auto' }) {
-  // accidentalStyle: 'auto' | 'sharps' | 'flats'
-  // Simple auto heuristic: if any pitch class name contains 'b' prefer flats, if contains '#' prefer sharps, else default to sharps
-  const decideAccidentals = (pcsList) => {
-    if (accidentalStyle === 'sharps') return 'sharps';
-    if (accidentalStyle === 'flats') return 'flats';
-    // auto
-    const names = (pcsList || []).map(p => NOTE_NAMES[(p % 12 + 12) % 12]);
-    if (names.some(n => n.includes('b'))) return 'flats';
-    if (names.some(n => n.includes('#'))) return 'sharps';
-    return 'sharps';
-  };
-  const accidentals = decideAccidentals(pcs);
-
   const input = notes || pcs;
+  const accidentals = chooseAccidentalStyle(input, accidentalStyle);
   // result.mismatches: array of {index, expected, played} from matchExactVoicing
 
   const containerRef = useRef(null);
@@ -80,10 +66,8 @@ export default function Staff({ pcs = [], notes = null, result = null, accidenta
           });
         }
         // convert to VexFlow key strings (e.g., 'c/4' or 'db/5') using chosen accidental style
-        const namesArr = accidentals === 'flats' ? NOTE_NAMES_FLATS : NOTE_NAMES;
         const keys = adjustedMidis.map(midi => {
-          const pc = midi % 12;
-          const name = namesArr[pc].toLowerCase();
+          const name = noteNameForPitchClass(midi, accidentals, adjustedMidis).toLowerCase();
           const octave = Math.floor(midi / 12) - 1;
           return `${name}/${octave}`;
         });
