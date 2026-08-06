@@ -1,83 +1,24 @@
 'use client';
 
-import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import Keyboard from './Keyboard';
 import ScoreCard from './ScoreCard';
 import SettingsPopup from './SettingsPopup';
 import Staff from './Staff';
-
-const DEFAULT_PREFERENCES = {
-  visualKeyboard: true,
-  baseOctave: 4,
-  mode: 'learning',
-  numberingStyle: 'formula',
-  octavesVisible: 3,
-};
-
-const DEFAULT_PREFERENCES_SNAPSHOT = JSON.stringify(DEFAULT_PREFERENCES);
-const PREFERENCES_EVENT = 'tonsic:preferences-changed';
-
-function readPreferences() {
-  if (typeof window === 'undefined') return DEFAULT_PREFERENCES;
-
-  const next = { ...DEFAULT_PREFERENCES };
-
-  try {
-    const persistedStyle = window.localStorage.getItem('numberingStyle');
-    if (persistedStyle) next.numberingStyle = persistedStyle;
-
-    const persistedMode = window.localStorage.getItem('mode');
-    if (persistedMode === 'test' || persistedMode === 'learning') next.mode = persistedMode;
-
-    const persistedOctaves = Number(window.localStorage.getItem('octavesVisible'));
-    if (Number.isFinite(persistedOctaves) && persistedOctaves > 0) next.octavesVisible = persistedOctaves;
-
-    const persistedVisual = window.localStorage.getItem('visualKeyboard');
-    if (persistedVisual !== null) next.visualKeyboard = persistedVisual === 'true';
-
-    const persistedBaseOctave = Number(window.localStorage.getItem('keyboardBaseOctave'));
-    if (Number.isFinite(persistedBaseOctave)) next.baseOctave = persistedBaseOctave;
-  } catch (e) {
-    // ignore
-  }
-
-  return next;
-}
-
-function subscribeToPreferences(callback) {
-  if (typeof window === 'undefined') return () => {};
-
-  function onChange() {
-    callback();
-  }
-
-  window.addEventListener('storage', onChange);
-  window.addEventListener(PREFERENCES_EVENT, onChange);
-
-  return () => {
-    window.removeEventListener('storage', onChange);
-    window.removeEventListener(PREFERENCES_EVENT, onChange);
-  };
-}
-
-function getPreferencesSnapshot() {
-  return JSON.stringify(readPreferences());
-}
-
-function persistPreference(key, value) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(key, String(value));
-    window.dispatchEvent(new Event(PREFERENCES_EVENT));
-  } catch (e) {
-    // ignore
-  }
-}
+import {
+  createRandomTarget,
+  deriveTargetDisplayState,
+  getStoredEnabledTypes,
+  persistEnabledTypes,
+} from './midiControllerHelpers';
+import {
+  persistPreference,
+  useMIDIControllerPreferences,
+} from './midiControllerPreferences';
 
 export default function MIDIController() {
   const debounceMs = 3000;
-  const preferences = JSON.parse(useSyncExternalStore(subscribeToPreferences, getPreferencesSnapshot, () => DEFAULT_PREFERENCES_SNAPSHOT));
+  const preferences = useMIDIControllerPreferences();
   const [chordsModule, setChordsModule] = useState(null);
   const [target, setTarget] = useState(null);
   const [status, setStatus] = useState('Not connected');
@@ -105,58 +46,29 @@ export default function MIDIController() {
         const m = mod.default || mod;
         if (!mounted) return;
         setChordsModule(m);
-        const first = m.randomChord({ includeExtended: true });
-        // compute a default voicing in octave 4
-        first.voicing = m.buildVoicing(first.root, first.type, 4);
-        setTarget(first);
+        setTarget(createRandomTarget(m));
         // initialize available chord types and enabled set from localStorage
         const types = Object.keys(m.CHORD_FORMULAS || {});
         setAvailableTypes(types);
-        let enabled = ['maj', 'min', '7'];
-        try {
-          const persisted = typeof window !== 'undefined' ? window.localStorage.getItem('enabledChordTypes') : null;
-          if (persisted) enabled = JSON.parse(persisted) || enabled;
-        } catch (e) {
-          // ignore
-        }
-        if (Array.isArray(enabled) && enabled.length) {
-          if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(enabled);
-          setEnabledTypes(new Set(enabled));
-        } else {
-          if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(['maj', 'min', '7']);
-          setEnabledTypes(new Set(['maj', 'min', '7']));
-        }
+        const enabled = getStoredEnabledTypes();
+        if (typeof m.setEnabledChordTypes === 'function') m.setEnabledChordTypes(enabled);
+        setEnabledTypes(new Set(enabled));
       })
       .catch((err) => console.error('Failed to load chords module:', err));
     return () => { mounted = false; };
   }, []);
 
-  let targetMidis = [];
-  let targetOrderMap = [];
-  if (chordsModule && target) {
-    if (target.voicing && target.voicing.length) targetMidis = target.voicing.slice();
-    else if (target.pcs && target.pcs.length && typeof chordsModule.buildVoicing === 'function') targetMidis = chordsModule.buildVoicing(target.root, target.type, baseOctave);
-
-    if (numberingStyle === 'formula') {
-      if (typeof chordsModule.getChordDegrees === 'function') {
-        targetOrderMap = chordsModule.getChordDegrees(target.type).slice();
-      } else {
-        targetOrderMap = targetMidis.map((_, i) => String(i + 1));
-      }
-    } else {
-      const pairs = targetMidis.map((m, i) => ({ m, i })).sort((a, b) => a.m - b.m);
-      targetOrderMap = new Array(targetMidis.length);
-      pairs.forEach((p, idx) => { targetOrderMap[p.i] = String(idx + 1); });
-    }
-  }
+  const { targetMidis, targetOrderMap } = deriveTargetDisplayState(
+    chordsModule,
+    target,
+    baseOctave,
+    numberingStyle,
+  );
 
   function newChord() {
     if (!chordsModule) return;
     setHistory((h) => [target, ...h].filter(Boolean).slice(0, 6));
-    const next = chordsModule.randomChord({ includeExtended: true });
-    // compute default voicing (root octave 4)
-    next.voicing = chordsModule.buildVoicing(next.root, next.type, 4);
-    setTarget(next);
+    setTarget(createRandomTarget(chordsModule));
     setResult(null);
     setIsRecording(false);
     setPlayedMidis([]);
@@ -169,7 +81,7 @@ export default function MIDIController() {
     setEnabledTypes(newSet);
     const arr = [...newSet];
     if (chordsModule && typeof chordsModule.setEnabledChordTypes === 'function') chordsModule.setEnabledChordTypes(arr);
-    if (typeof window !== 'undefined') window.localStorage.setItem('enabledChordTypes', JSON.stringify(arr));
+    persistEnabledTypes(arr);
   }
 
   function handlePlayedNote(noteNumber) {
