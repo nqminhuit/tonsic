@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function useWebMIDI(onNoteOn) {
   const [status, setStatus] = useState('Not connected');
+  const onNoteOnRef = useRef(onNoteOn);
+  useEffect(() => { onNoteOnRef.current = onNoteOn; });
 
   function attach(access) {
     for (const input of access.inputs.values()) {
@@ -13,7 +15,7 @@ export function useWebMIDI(onNoteOn) {
         if (cmd === 0x90) {
           const note = event.data[1];
           const velocity = event.data[2];
-          if (velocity > 0) onNoteOn(note);
+          if (velocity > 0) onNoteOnRef.current(note);
         }
       };
     }

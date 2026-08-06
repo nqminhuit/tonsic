@@ -12,6 +12,12 @@ export function useExactVoicingCapture({
   const captureRef = useRef([]);
   const timerRef = useRef(null);
   const highlightTimerRef = useRef(null);
+  const onCaptureCompleteRef = useRef(onCaptureComplete);
+  const onNewAttemptRef = useRef(onNewAttempt);
+  useEffect(() => {
+    onCaptureCompleteRef.current = onCaptureComplete;
+    onNewAttemptRef.current = onNewAttempt;
+  });
   const [isRecording, setIsRecording] = useState(false);
   const [playedMidis, setPlayedMidis] = useState([]);
 
@@ -37,13 +43,13 @@ export function useExactVoicingCapture({
     clearCaptureTimer();
     captureRef.current.length = 0;
     setIsRecording(false);
-    onCaptureComplete(played);
+    onCaptureCompleteRef.current(played);
   }
 
   function handlePlayedNote(noteNumber) {
     const startingNewCapture = captureRef.current.length === 0;
     if (startingNewCapture) {
-      onNewAttempt();
+      onNewAttemptRef.current();
       setIsRecording(true);
       clearHighlightTimer();
     }
