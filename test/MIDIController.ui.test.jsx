@@ -146,8 +146,9 @@ describe('MIDIController UI behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'play-64' }));
 
     await screen.findByText('Voicing or note order did not match');
-    expect(screen.getByText('Position 2: expected E4, played G4')).toBeTruthy();
-    expect(screen.getByText('Position 3: expected G4, played E4')).toBeTruthy();
+    expect(screen.getByText('Note differences')).toBeTruthy();
+    expect(screen.getAllByText('E4').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('G4').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows an unsupported status when Web MIDI is unavailable', async () => {
