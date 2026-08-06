@@ -71,11 +71,13 @@ export default function MIDIController() {
   }, []);
 
   useEffect(() => {
-    // load persisted preferences for numbering style and octaves visible
+    // load persisted preferences for numbering style, mode, and octaves visible
     try {
       if (typeof window !== 'undefined') {
         const persistedStyle = window.localStorage.getItem('numberingStyle');
         if (persistedStyle) setNumberingStyle(persistedStyle);
+        const persistedMode = window.localStorage.getItem('mode');
+        if (persistedMode === 'test' || persistedMode === 'learning') setMode(persistedMode);
         const persistedOctaves = window.localStorage.getItem('octavesVisible');
         if (persistedOctaves) setOctavesVisible(Number(persistedOctaves));
       }
@@ -312,7 +314,7 @@ export default function MIDIController() {
         <div className="mt-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-slate-500">Chord types</div>
-            <button onClick={() => setShowSettings(s => !s)} className="px-4 py-2 text-white rounded-md cursor-pointer bg-indigo-600 hover:bg-indigo-900 text-indigo-600">Settings</button>
+            <button onClick={() => setShowSettings(s => !s)} className="px-4 py-2 text-white rounded-md cursor-pointer bg-indigo-600 hover:bg-indigo-900">Settings</button>
           </div>
           {showSettings && (
             <SettingsPopup
