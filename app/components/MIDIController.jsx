@@ -290,7 +290,7 @@ export default function MIDIController() {
             <div className="mt-1">
               <div className="flex items-center gap-3">
                 <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-lg">{target ? target.name : '—'}</span>
-                <div className="text-sm text-slate-600">Play the chord or use the on-screen keys</div>
+                <div className="text-sm text-slate-600">Match the exact voicing shown on the staff, including octave and note order</div>
               </div>
               <div className="mt-3">
                 <Staff notes={target ? (target.voicing || target.pcs) : []} result={result} />
@@ -311,9 +311,9 @@ export default function MIDIController() {
           <Keyboard onPlay={handlePlayedNote} hideLabels={visualKeyboard} visual={visualKeyboard} baseOctave={baseOctave} octaves={octavesVisible} targetMidis={mode === 'learning' ? targetMidis : []} showOrderNumbers={mode === 'learning'} orderMap={targetOrderMap} highlightedMidis={mode === 'learning' ? playedMidis : []} />
           <div className="mt-2 text-sm text-slate-500">
             {isRecording ? (
-              <span className="text-green-600">Recording… will evaluate after {debounceMs}ms of silence (configurable)</span>
+              <span className="text-green-600">Recording exact voicing... evaluation runs after {debounceMs}ms of silence</span>
             ) : (
-              <span>Ready — evaluation delay: {debounceMs}ms</span>
+              <span>Ready to check exact voicing and note order. Evaluation delay: {debounceMs}ms</span>
             )}
           </div>
         </div>
