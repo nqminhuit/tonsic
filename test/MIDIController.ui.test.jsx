@@ -149,4 +149,29 @@ describe('MIDIController UI behavior', () => {
     expect(screen.getByText('Position 2: expected E4, played G4')).toBeTruthy();
     expect(screen.getByText('Position 3: expected G4, played E4')).toBeTruthy();
   });
+
+  it('shows an unsupported status when Web MIDI is unavailable', async () => {
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {},
+    });
+
+    try {
+      window.localStorage.setItem('enabledChordTypes', JSON.stringify(['maj']));
+      seedMathRandom([0, 0]);
+
+      render(<MIDIController />);
+
+      await screen.findByText('C');
+      fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+
+      expect(screen.getByText('Web MIDI not supported')).toBeTruthy();
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: originalNavigator,
+      });
+    }
+  });
 });

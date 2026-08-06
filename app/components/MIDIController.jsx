@@ -16,13 +16,13 @@ import {
   useMIDIControllerPreferences,
 } from './midiControllerPreferences';
 import { useExactVoicingCapture } from './useExactVoicingCapture';
+import { useWebMIDI } from './useWebMIDI';
 
 export default function MIDIController() {
   const debounceMs = 3000;
   const preferences = useMIDIControllerPreferences();
   const [chordsModule, setChordsModule] = useState(null);
   const [target, setTarget] = useState(null);
-  const [status, setStatus] = useState('Not connected');
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [availableTypes, setAvailableTypes] = useState([]);
@@ -96,6 +96,7 @@ export default function MIDIController() {
       }
     },
   });
+  const { connectMIDI, status } = useWebMIDI(handlePlayedNote);
 
   function newChord() {
     if (!chordsModule) return;
@@ -125,36 +126,6 @@ export default function MIDIController() {
       return () => clearTimeout(t);
     }
   }, [result, mode]);
-
-  async function connectMIDI() {
-    if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
-      setStatus('Web MIDI not supported');
-      return;
-    }
-    try {
-      const access = await navigator.requestMIDIAccess();
-      setStatus('Connected');
-      attach(access);
-      access.onstatechange = () => attach(access);
-    } catch (err) {
-      console.error(err);
-      setStatus('Failed to connect');
-    }
-  }
-
-  function attach(access) {
-    for (const input of access.inputs.values()) {
-      input.onmidimessage = (e) => {
-        const [statusByte] = e.data;
-        const cmd = statusByte & 0xf0;
-        if (cmd === 0x90) {
-          const note = e.data[1];
-          const velocity = e.data[2];
-          if (velocity > 0) handlePlayedNote(note);
-        }
-      };
-    }
-  }
 
   return (
     <div className="grid lg:grid-cols-4 gap-6 items-start">
