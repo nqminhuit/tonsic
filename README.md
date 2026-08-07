@@ -2,27 +2,25 @@ Tonsic — Chord Trainer (Next.js App Router)
 
 Quick start:
 
-1. Install dependencies: npm install
-2. Run dev server: npm run dev
-3. Build: npm run build
-4. Start: npm start
+1. Install dependencies: `npm install`
+2. Run the dev server: `npm run dev`
+3. Run tests: `npm test`
+4. Build for production: `npm run build`
+5. Start the production server: `npm start`
 
-Notes:
-- This project has been refactored to use Next.js App Router (app/).
-- Client MIDI UI and keyboard are implemented as React client components under app/components/.
-- Chord logic is a pure module at lib/chords.js and is unit-tested (npm test).
-- Legacy static files were moved to public/ as fallbacks (public/index.html, public/app.js).
+Project notes:
 
-Files changed:
-- lib/chords.js: converted to a testable module without DOM usage.
-- app/: added app/layout.jsx, app/page.jsx and client components.
-- styles/globals.css: global styles and Tailwind directives.
-- public/: legacy static files for fallback.
+- The active app uses the Next.js App Router under `app/`.
+- Interactive UI components live under `app/components/`.
+- Core chord logic lives in `lib/chords.js` and is tested with `npm test`.
+- `components/` contains older component experiments that are not used by the current App Router entrypoints.
 
 Running locally:
-- npm install
-- npm run dev
-- npm run build
-- npm start
 
-If you need the previous Pages Router files they were archived to pages_legacy before cleanup.
+- `npm install`
+- `npm run dev`
+
+Production check:
+
+- `npm run build`
+- `npm start`
